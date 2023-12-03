@@ -25,15 +25,15 @@ struct Number {
 };
 
 struct Map {
-    bool[Coord] symbols;
+    dchar[Coord] symbols;
     Number[] numbers;
 };
 
-Tuple!(bool[Coord], Number[]) parseLine(string line, long lineNo)
+Tuple!(dchar[Coord], Number[]) parseLine(string line, long lineNo)
 {
     const long expectedLength = line.length;
 
-    bool[Coord] symbols;
+    dchar[Coord] symbols;
     Number[] numbers;
     int col = 0;
     while(!line.empty)
@@ -48,7 +48,7 @@ Tuple!(bool[Coord], Number[]) parseLine(string line, long lineNo)
 
         if (isSymbol(line.front))
         {
-            symbols[Coord(lineNo, col)] = true;
+            symbols[Coord(lineNo, col)] = line.front;
         }
         line.popFront();
         col++;
@@ -82,6 +82,12 @@ long part1(Map m)
     return m.numbers.filter!(isPartNumber).map!"a.value".sum;
 }
 
+auto part2(Map m)
+{
+    const auto getAdjacent = (Coord s) => m.numbers.filter!(n => isNeighbour(n, s)).array();
+    return m.symbols.byPair.filter!(x => x[1] == '*').map!(x => getAdjacent(x[0])).filter!(x => x.length == 2).map!(x => x[0].value * x[1].value).sum();
+}
+
 void main()
 {
     string example1 = `467..114..
@@ -97,4 +103,6 @@ void main()
 
     writeln(part1(parseMap(example1)));
     writeln(part1(parseMap(readText("input"))));
+    writeln(part2(parseMap(example1)));
+    writeln(part2(parseMap(readText("input"))));
 }
