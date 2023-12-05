@@ -21,7 +21,7 @@ Card parseCard(string s)
     const long barIndex = s.indexOf('|');
     string indexStr = s[indexStart .. colonIndex];
     return Card(
-        parse!(long, string)(indexStr),
+        parse!(long, string)(indexStr) - 1,
         s[colonIndex + 1 .. barIndex].split(' ').filter!(x => !x.empty).map!(x => parse!(long, string)(x)).array,
         s.drop(barIndex + 1).split(' ').filter!(x => !x.empty).map!(x => parse!(long, string)(x)).array);
 }
@@ -40,6 +40,26 @@ long part1(Card[] cards)
     return cards.map!(scoreCard).sum;
 }
 
+long part2(Card[] cards)
+{
+    long[][] sources = new long[][cards.length];
+    foreach (Card c; cards)
+    {
+        const long n = c.right.filter!(x => c.left.canFind(x)).count;
+        foreach (long i; iota(c.index + 1, c.index + 1 + n))
+        {
+            sources[i] ~= c.index;
+        }
+    }
+
+    long[] count = new long[cards.length];
+    for(long i = 0; i < cards.length; i++)
+    {
+        count[i] = 1 + sources[i].map!(j => count[j]).sum;
+    }
+    return count.sum;
+}
+
 void main()
 {
     const string example1 = `Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
@@ -51,4 +71,6 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11`;
 
     writeln(part1(parseCards(example1)));
     writeln(part1(parseCards(readText("input"))));
+    writeln(part2(parseCards(example1)));
+    writeln(part2(parseCards(readText("input"))));
 }
