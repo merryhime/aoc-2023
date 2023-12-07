@@ -3,18 +3,16 @@ import std.stdio;
 import std.range;
 import std.algorithm.sorting;
 import std.algorithm.iteration;
+import std.algorithm.searching;
 import std.conv;
 import std.file;
 
 const string STRENGTH = "23456789TJQKA";
-
-long strength(dchar ch) {
-    return STRENGTH.indexOf(ch);
-}
+const string JSTRENGTH = "J23456789TQKA";
 
 enum Type { High, OnePair, TwoPair, Three, FullHouse, Four, Five };
 
-auto type(string hand) {
+Type type(string hand) {
     ulong[] cnt = hand.array.sort.uniq.map!(c => hand.count(c)).array.sort.retro.array;
     switch (cnt[0]) {
     case 5: return Type.Five;
@@ -26,21 +24,29 @@ auto type(string hand) {
     }
 }
 
+Type jtype(string hand) {
+    if (hand == "JJJJJ") return Type.Five;
+    dchar r = hand.replace("J", "").array.sort.uniq.maxElement!(c => hand.count(c));
+    return type(hand.replace('J', r));
+}
+
 // -1 = a is stronger
 //  0 = equal strength
 // +1 = b is stronger
-int compare(string a, string b) {
-    Type ta = type(a);
-    Type tb = type(b);
-    if (ta > tb) return -1;
-    if (ta < tb) return +1;
-    for (int i = 0; i < 5; i++) {
-        long sa = strength(a[i]);
-        long sb = strength(b[i]);
-        if (sa > sb) return -1;
-        if (sa < sb) return +1;
+template compare(alias tfunc, string strength) {
+    int compare(string a, string b) {
+        Type ta = tfunc(a);
+        Type tb = tfunc(b);
+        if (ta > tb) return -1;
+        if (ta < tb) return +1;
+        for (int i = 0; i < 5; i++) {
+            long sa = strength.indexOf(a[i]);
+            long sb = strength.indexOf(b[i]);
+            if (sa > sb) return -1;
+            if (sa < sb) return +1;
+        }
+        return 0;
     }
-    return 0;
 }
 
 struct Hand {
@@ -55,13 +61,10 @@ Hand[] parseHands(string s) {
     }).array;
 }
 
-long part1(Hand[] hands) {
-    hands.sort!((x, y) => compare(x.hand, y.hand) == +1);
-    long result = 0;
-    for (long i = 0; i < hands.length; i++) {
-        result += (i + 1) * hands[i].bid;
+template eval(alias tfunc, string strength) {
+    long eval(Hand[] hands) {
+        return hands.sort!((x, y) => compare!(tfunc, strength)(x.hand, y.hand) == +1).enumerate.map!(x => (x[0] + 1) * x[1].bid).sum;
     }
-    return result;
 }
 
 void main() {
@@ -71,6 +74,8 @@ KK677 28
 KTJJT 220
 QQQJA 483`;
 
-    writeln(part1(parseHands(example1)));
-    writeln(part1(parseHands(readText("input"))));
+    writeln(eval!(type, STRENGTH)(parseHands(example1)));
+    writeln(eval!(type, STRENGTH)(parseHands(readText("input"))));
+    writeln(eval!(jtype, JSTRENGTH)(parseHands(example1)));
+    writeln(eval!(jtype, JSTRENGTH)(parseHands(readText("input"))));
 }
