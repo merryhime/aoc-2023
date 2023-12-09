@@ -33,10 +33,19 @@ long part1(long[][] seqs) {
     }).sum;
 }
 
+long part2(long[][] seqs) {
+    return seqs.map!((long[] seq) {
+        long[] diffs = calcDiffs(seq);
+        return seq[0] + calcPos(diffs, -1);
+    }).sum;
+}
+
 void main() {
     const string example1 = `0 3 6 9 12 15
 1 3 6 10 15 21
 10 13 16 21 30 45`;
     writeln(part1(parseInput(example1)));
     writeln(part1(parseInput(readText("input"))));
+    writeln(part2(parseInput(example1)));
+    writeln(part2(parseInput(readText("input"))));
 }
