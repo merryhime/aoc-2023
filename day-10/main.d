@@ -84,6 +84,12 @@ struct AntiPipe {
     Coord[] jmp;
 };
 
+struct Position {
+    Coord pipe;
+    Coord query;
+    Coord prev;
+};
+
 long part2(Map m) {
     Coord[] loop = findLoop(m).byKey.array;
     long minx = loop.map!"a.x".minElement;
@@ -102,55 +108,81 @@ long part2(Map m) {
 
     int[Coord] isInsideCache;
     Coord[] uncertain;
-    bool[Coord] nodeInvert;
-    int isInside(Coord c, bool invert = false) {
-        if (c in isInsideCache) return isInsideCache[c];
-        if (c.x < minx || c.x > maxx || c.y < miny || c.y > maxy) return isInsideCache[c] = -1;
-        if (uncertain.empty && loop.canFind(c)) return -1;
+    int depth = 0;
+    int isInside(Coord c) {
+        // if (c in isInsideCache) return isInsideCache[c];
+        if (c.x < minx || c.x > maxx || c.y < miny || c.y > maxy) return -1;
+        if (loop.canFind(c)) return 0;
         // We are in uncertainty mode
         if (uncertain.canFind(c)) return 0;
         const bool isRoot = uncertain.empty;
         uncertain ~= c;
-        nodeInvert[c] = invert;
         int result = (){
-            foreach(Coord neighbour; [Coord(0, -1), Coord(0, +1), Coord(-1, 0), Coord(+1, 0)].map!(i => i + c)) {
+            auto neighbours = [Coord(0, -1), Coord(0, +1), Coord(-1, 0), Coord(+1, 0)].map!(i => i + c).array;
+            neighbours.partition!(i => !loop.canFind(i));
+            foreach(Coord neighbour; neighbours) {
                 if (loop.canFind(neighbour)) {
-                    bool pipeInvert = false;
-                    Coord base = c;
-                    while (loop.canFind(neighbour)) {
-                        AntiPipe ap = ANTIPIPES[m.pipes[neighbour].ch];
-                        if (ap.straight) pipeInvert = !pipeInvert;
-                        auto ns = ap.n[].map!(n => n + neighbour).filter!(n => n != base).array;
-                        assert(ns.length == 1);
-                        Coord nextNeighbour = ns[0];
-                        base = neighbour;
-                        neighbour = nextNeighbour;
-                    }
-                    int result = isInside(neighbour, pipeInvert ? !invert : invert);
-                    result = pipeInvert ? -result : result;
-                    if (result != 0) {
-                        return result;
-                    }
+                    Coord pipe = neighbour;
+                    Coord query = c;
+                    Coord prev = (){
+                        dchar ch = m.pipes[pipe].ch;
+                        AntiPipe ap = ANTIPIPES[ch];
+                        Coord[] expectedQuery = ap.n[].map!(n => n + pipe).array;
+                        long i = expectedQuery.countUntil(query);
+                        return m.pipes[pipe].neighbours[i];
+                    }();
+                    writeln(depth, " neighbour on loop: ", pipe, query, prev);
+                    do {
+                        int r2 = isInside(query); if (r2 != 0) return r2;
+                        dchar ch = m.pipes[pipe].ch;
+                        writeln(ch, ' ', pipe, query);
+                        AntiPipe ap = ANTIPIPES[ch];
+                        if (!ap.straight) {
+                            Coord[] expectedQuery = ap.n[].map!(n => n + pipe).array;
+                            if (expectedQuery.canFind(query)) {
+                                Coord query2 = expectedQuery.filter!(n => n != query).array[0];
+                                // int r = isInside(query2); if (r != 0) return -r;
+                                Coord nextPipe = m.pipes[pipe].neighbours[].filter!(p => p != prev).array[0];
+                                query = query2 + (nextPipe - pipe);
+                                prev = pipe;
+                                pipe = nextPipe;
+                            } else {
+                                Coord nextPipe = m.pipes[pipe].neighbours[].filter!(p => p != prev).array[0];
+                                query = pipe + ap.jmp[0];
+                                prev = pipe;
+                                pipe = nextPipe;
+                            }
+                        } else {
+                            Coord[] expectedQuery = ap.n[].map!(n => n + pipe).array;
+                            assert(expectedQuery.canFind(query));
+                            Coord query2 = expectedQuery.filter!(n => n != query).array[0];
+                            // int r = isInside(query2); if (r != 0) return r;
+                            Coord nextPipe = m.pipes[pipe].neighbours[].filter!(p => p != prev).array[0];
+                            query = query + (nextPipe - pipe);
+                            prev = pipe;
+                            pipe = nextPipe;
+                        }
+                        writeln(depth, " traversing loop: ", pipe, query, prev);
+                    } while(pipe != neighbour);
+                    assert(false);
                 }
-                const int result = isInside(neighbour, invert);
-                if (result != 0) {
-                    return result;
-                }
+                int r = isInside(neighbour); if (r != 0) return r;
             }
             return 0;
         }();
         if (isRoot) {
-            foreach (Coord u; uncertain) { isInsideCache[u] = (nodeInvert[u] ? -result : result); }
+            if (result != 0) {
+                foreach (Coord u; uncertain) { isInsideCache[u] = result; }
+            }
             uncertain = [];
-            nodeInvert.clear;
         }
         return result;
     }
     long result = cartesianProduct(iota(minx, maxx + 1), iota(miny, maxy + 1)).map!(i => isInside(Coord(i[0], i[1])) == +1).filter!"a".count;
-    for (long y = miny; y <= maxy; y++) {
-        for (long x = minx; x <= maxx; x++) {
+    for (long y = 0; y <= maxy; y++) {
+        for (long x = 0; x <= maxx; x++) {
             if (loop.canFind(Coord(x, y))) {
-                write('*'); // write(m.pipes[Coord(x, y)].ch);
+                write(m.pipes[Coord(x, y)].ch);
                 continue;
             }
             switch (isInside(Coord(x, y))) {
@@ -216,7 +248,7 @@ L7JLJL-JLJLJL--JLJ.L`;
     writeln(findLoop(parseMap(example3)).byValue.maxElement);
     writeln(findLoop(parseMap(readText("input"))).byValue.maxElement);
     writeln(part2(parseMap(example4)));
-    writeln(part2(parseMap(example5)));
-    writeln(part2(parseMap(example6)));
-    writeln(part2(parseMap(readText("input"))));
+    // writeln(part2(parseMap(example5)));
+    // writeln(part2(parseMap(example6)));
+    // writeln(part2(parseMap(readText("input"))));
 }
