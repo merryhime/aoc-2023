@@ -45,14 +45,15 @@ Descriptor[] getNeighbours(Descriptor d, int[][] m) {
 }
 
 long search(int[][] m) {
-    Descriptor[] openSet = [Descriptor(Coord(0, 0), Coord(0, 0), -1)];
+    Descriptor startDesc = Descriptor(Coord(0, 0), Coord(0, 0), -1);
+    bool[Descriptor] openSet;
+    openSet[startDesc] = true;
     const Coord goal = Coord(m[0].length - 1, m.length - 1);
     int[Descriptor] gscore;
-    gscore[openSet[0]] = 0;
+    gscore[startDesc] = 0;
     while (!openSet.empty) {
-        long currentIndex = openSet.map!(d => gscore[d] + d.loc.oneNorm(goal)).minIndex;
-        Descriptor current = openSet[currentIndex];
-        openSet.remove(currentIndex);
+        Descriptor current = openSet.byKey.minElement!(d => gscore[d] + d.loc.oneNorm(goal));
+        openSet.remove(current);
         if (current.loc == goal)
             return gscore[current];
 
@@ -61,9 +62,7 @@ long search(int[][] m) {
             int score = gscore[current] + m[n.loc.x][n.loc.y];
             if (n !in gscore || score < gscore[n]) {
                 gscore[n] = score;
-                if (!openSet.canFind(n)) {
-                    openSet ~= n;
-                }
+                openSet[n] = true;
             }
         }
     }
