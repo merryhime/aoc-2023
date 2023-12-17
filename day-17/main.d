@@ -21,6 +21,7 @@ struct Coord {
     long x, y;
     Coord opBinary(string op : "+")(Coord rhs) { return Coord(x + rhs.x, y + rhs.y); }
     Coord opBinary(string op : "-")(Coord rhs) { return Coord(x - rhs.x, y - rhs.y); }
+    Coord opBinary(string op : "*")(int scale) { return Coord(x * scale, y * scale); }
     Coord opUnary(string op : "-")() { return Coord(-x, -y); }
     long oneNorm(Coord other) { return abs(x - other.x) + abs(y - other.y); }
 };
@@ -28,24 +29,35 @@ struct Coord {
 struct Descriptor {
     Coord loc;
     Coord dir;
-    int dirRem;
 };
 
-Descriptor[] getNeighbours(Descriptor d, int[][] m) {
+bool isIn(Coord c, int[][] m) {
+    return c.x >= 0 && c.y >= 0 && c.x < m[0].length && c.y < m.length;
+}
+
+Tuple!(Descriptor, int)[] crucible(int start, int end)(Descriptor d, int[][] m) {
     return [Coord(-1, 0), Coord(+1, 0), Coord(0, -1), Coord(0, +1)]
-        .filter!(step => step != -d.dir)
+        .filter!(step => step != -d.dir && step != d.dir)
         .map!((Coord step) {
-            if (d.dir == step)
-                return Descriptor(d.loc + step, step, d.dirRem - 1);
-            return Descriptor(d.loc + step, step, 2);
+            int acc = 0;
+            Tuple!(Descriptor, int)[] result;
+            for (int i = 1; i <= end; i++) {
+                Coord c = d.loc + step * i;
+                if (c.isIn(m)) {
+                    acc += m[c.x][c.y];
+                    if (i >= start) {
+                        result ~= tuple(Descriptor(c, step), acc);
+                    }
+                }
+            }
+            return result;
         })
-        .filter!(d2 => d2.dirRem >= 0)
-        .filter!(d2 => d2.loc.x >= 0 && d2.loc.y >= 0 && d2.loc.x < m[0].length && d2.loc.y < m.length)
+        .joiner
         .array;
 }
 
-long search(int[][] m) {
-    Descriptor startDesc = Descriptor(Coord(0, 0), Coord(0, 0), -1);
+long search(alias getNeighbours)(int[][] m) {
+    Descriptor startDesc = Descriptor(Coord(0, 0), Coord(0, 0));
     bool[Descriptor] openSet;
     openSet[startDesc] = true;
     const Coord goal = Coord(m[0].length - 1, m.length - 1);
@@ -57,9 +69,11 @@ long search(int[][] m) {
         if (current.loc == goal)
             return gscore[current];
 
-        Descriptor[] neighbours = getNeighbours(current, m);
-        foreach (Descriptor n; neighbours) {
-            int score = gscore[current] + m[n.loc.x][n.loc.y];
+        Tuple!(Descriptor, int)[] neighbours = getNeighbours(current, m);
+        foreach (p; neighbours) {
+            Descriptor n = p[0];
+            int diff = p[1];
+            int score = gscore[current] + diff;
             if (n !in gscore || score < gscore[n]) {
                 gscore[n] = score;
                 openSet[n] = true;
@@ -84,6 +98,8 @@ void main() {
 2546548887735
 4322674655533`;
 
-    writeln(search(parseMap(example1)));
-    writeln(search(parseMap(readText("input"))));
+    writeln(search!(crucible!(1, 3))(parseMap(example1)));
+    writeln(search!(crucible!(1, 3))(parseMap(readText("input"))));
+    writeln(search!(crucible!(4, 10))(parseMap(example1)));
+    writeln(search!(crucible!(4, 10))(parseMap(readText("input"))));
 }
