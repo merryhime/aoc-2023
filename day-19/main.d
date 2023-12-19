@@ -19,7 +19,7 @@ struct Pipeline {
 };
 
 struct Rule {
-    bool function(Part, long) eval;
+    string eval;
     long value;
     string target;
 };
@@ -39,24 +39,13 @@ Pipeline[string] parseRules(string str) {
             if (rstr.canFind(':')) {
                 long cmpIndex = rstr.countUntil!(ch => ch == '<' || ch == '>');
                 long colonIndex = rstr.countUntil!(ch => ch == ':');
-                bool function(Part, long) eval;
                 string valueStr = rstr[cmpIndex + 1 .. colonIndex].text;
+                string eval = rstr[0 .. cmpIndex + 1];
                 long value = parse!long(valueStr);
                 string target = rstr[colonIndex + 1 .. $].text;
-                switch (rstr[0 .. cmpIndex + 1]) {
-                    case "x>": eval = (Part p, long v) => p.x > v; break;
-                    case "x<": eval = (Part p, long v) => p.x < v; break;
-                    case "m>": eval = (Part p, long v) => p.m > v; break;
-                    case "m<": eval = (Part p, long v) => p.m < v; break;
-                    case "a>": eval = (Part p, long v) => p.a > v; break;
-                    case "a<": eval = (Part p, long v) => p.a < v; break;
-                    case "s>": eval = (Part p, long v) => p.s > v; break;
-                    case "s<": eval = (Part p, long v) => p.s < v; break;
-                    default: assert(false);
-                }
                 rules ~= Rule(eval, value, target);
             } else {
-                rules ~= Rule((Part p, long l) => true, -1, rstr);
+                rules ~= Rule("true", -1, rstr);
             }
         }
         return tuple(pipelineName, Pipeline(pipelineName, rules));
@@ -82,7 +71,20 @@ auto part1(string str) {
         string pl = "in";
         while (pl != "A" && pl != "R") {
             foreach (Rule r; pipelines[pl].rules) {
-                if (r.eval(part, r.value)) {
+                bool pass = false;
+                switch (r.eval) {
+                    case "x>": pass = part.x > r.value; break;
+                    case "x<": pass = part.x < r.value; break;
+                    case "m>": pass = part.m > r.value; break;
+                    case "m<": pass = part.m < r.value; break;
+                    case "a>": pass = part.a > r.value; break;
+                    case "a<": pass = part.a < r.value; break;
+                    case "s>": pass = part.s > r.value; break;
+                    case "s<": pass = part.s < r.value; break;
+                    case "true": pass = true; break;
+                    default: assert(false);
+                }
+                if (pass) {
                     pl = r.target;
                     break;
                 }
