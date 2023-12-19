@@ -94,6 +94,80 @@ auto part1(string str) {
     }).sum;
 }
 
+struct Interval {
+    long min_, max_;
+    long width() { return max_ - min_ + 1; }
+}
+
+struct Parts {
+    string pl;
+    long index;
+    Interval x, m, a, s;
+    long prod() { return x.width * m.width * a.width * s.width; }
+}
+
+auto part2(string str) {
+    Pipeline[string] pipelines = parseRules(str.split("\n\n")[0]);
+    Parts[] next = [Parts("in", 0, Interval(1, 4000), Interval(1, 4000), Interval(1, 4000), Interval(1, 4000))];
+    Parts[] accepted;
+    while (!next.empty) {
+        Parts current = next.front;
+        next.popFront;
+
+        if (current.pl == "A") {
+            accepted ~= current;
+            continue;
+        }
+        if (current.pl == "R") {
+            continue;
+        }
+
+        Rule r = pipelines[current.pl].rules[current.index];
+
+        Interval function(Parts) get;
+        Interval function(ref Parts, Interval) set;
+        switch (r.eval[0]) {
+        case 'x': get = (Parts p) => p.x; set = (ref Parts p, Interval v) => p.x = v; break;
+        case 'm': get = (Parts p) => p.m; set = (ref Parts p, Interval v) => p.m = v; break;
+        case 'a': get = (Parts p) => p.a; set = (ref Parts p, Interval v) => p.a = v; break;
+        case 's': get = (Parts p) => p.s; set = (ref Parts p, Interval v) => p.s = v; break;
+        case 't': break;
+        default: assert(false);
+        }
+
+        if (r.eval == "true") {
+            next ~= Parts(r.target, 0, current.x, current.m, current.a, current.s);
+        } else {
+            Interval pass, fail;
+            Interval v = get(current);
+
+            switch (r.eval[1]) {
+            case '<':
+                pass = Interval(v.min_, r.value - 1);
+                fail = Interval(r.value, v.max_);
+                break;
+            case '>':
+                fail = Interval(v.min_, r.value);
+                pass = Interval(r.value + 1, v.max_);
+                break;
+            default:
+                assert(false);
+            }
+
+            if (pass.min_ <= pass.max_) {
+                set(current, pass);
+                next ~= Parts(r.target, 0, current.x, current.m, current.a, current.s);
+            }
+            if (fail.min_ <= fail.max_) {
+                set(current, fail);
+                next ~= Parts(current.pl, current.index + 1, current.x, current.m, current.a, current.s);
+            }
+        }
+    }
+
+    return accepted.map!(p => p.prod).sum;
+}
+
 void main() {
     string example1 = `px{a<2006:qkq,m>2090:A,rfg}
 pv{a>1716:R,A}
@@ -115,4 +189,6 @@ hdj{m>838:A,pv}
 
     writeln(part1(example1));
     writeln(part1(readText("input")));
+    writeln(part2(example1));
+    writeln(part2(readText("input")));
 }
