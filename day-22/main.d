@@ -70,17 +70,23 @@ Brick extractLowest(ref Brick[] bricks) {
     return minz;
 }
 
+Brick[] sortByLowest(Brick[] bricks) {
+    Brick[] result;
+    while (!bricks.empty) {
+        result ~= extractLowest(bricks);
+    }
+    return result;
+}
+
 struct Env {
     Brick[] fallen;
     long[Vec2] hm;
     long[Vec3] brickId;
 }
 
-Env genEnv(string str) {
+Env doFall(Brick[] bricks) {
     Env e;
-    Brick[] bricks = parseBricks(str);
-    while (!bricks.empty) {
-        Brick b = extractLowest(bricks);
+    foreach (Brick b; bricks) {
         b = b.fall(e.hm);
         b.addToHeightMap(e.hm);
         foreach (i; b.body) e.brickId[i] = e.fallen.length;
@@ -93,7 +99,8 @@ long[] support(Env e, long id, Vec3 offset) { return e.fallen[id].body.map!(i =>
 long[] supportedBy(Env e, long id) { return e.support(id, Vec3(0,0,-1)); }
 long[] supporting(Env e, long id) { return e.support(id, Vec3(0,0,+1)); }
 
-long part1(Env e) {
+long part1(string str) {
+    Env e = doFall(sortByLowest(parseBricks(str)));
     long result = 0;
     for (long id = 0; id < e.fallen.length; id++) {
         long[] dependents = e.supporting(id);
@@ -112,7 +119,7 @@ void main() {
 2,0,5~2,2,5
 0,1,6~2,1,6
 1,1,8~1,1,9`;
-    writeln(parseBricks(example1));
-    writeln(part1(genEnv(example1)));
-    writeln(part1(genEnv(readText("input"))));
+
+    writeln(part1(example1));
+    writeln(part1(readText("input")));
 }
