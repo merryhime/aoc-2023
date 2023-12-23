@@ -111,6 +111,17 @@ long part1(string str) {
     return result;
 }
 
+long part2(string str) {
+    Env starte = doFall(sortByLowest(parseBricks(str)));
+    long result = 0;
+    for (long id = 0; id < starte.fallen.length; id++) {
+        Brick[] bricks = starte.fallen.dup.remove(id).array;
+        Env e = doFall(bricks);
+        result += e.fallen.zip(bricks).map!(p => cast(long)(p[0] != p[1])).sum;
+    }
+    return result;
+}
+
 void main() {
     string example1 = `1,0,1~1,2,1
 0,0,2~2,0,2
@@ -122,4 +133,6 @@ void main() {
 
     writeln(part1(example1));
     writeln(part1(readText("input")));
+    writeln(part2(example1));
+    writeln(part2(readText("input")));
 }
