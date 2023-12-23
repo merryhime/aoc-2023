@@ -30,7 +30,8 @@ Coord findTile(string[] m, dchar s) {
 }
 
 bool isInBoundsOf(Coord c, string[] m) {
-    return c.y >= 0 && c.y < m.length && c.x >= 0 && c.x < m[c.y].length && (m[c.y][c.x] == '.' || m[c.y][c.x] == 'S');
+    dchar ch = m[c.y % m.length][c.x % m[0].length];
+    return ch == '.' || ch == 'S';
 }
 
 long part1(string mstr, int steps) {
