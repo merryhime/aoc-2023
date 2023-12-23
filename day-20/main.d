@@ -33,13 +33,16 @@ Module[string] parseModules(string str) {
     }).assocArray;
 }
 
+string[] getInputs(const ref Network n, string current) {
+    return n.modules.byPair.filter!(p => p[1].output.canFind(current)).map!(p => p[0]).array;
+}
+
 Network parseNetwork(string str) {
     Network n;
     n.modules = parseModules(str);
     foreach (string conj; n.modules.byPair.filter!(p => p[1].type == '&').map!(p => p[0])) {
-        string[] inputs = n.modules.byPair.filter!(p => p[1].output.canFind(conj)).map!(p => p[0]).array;
         assert(conj !in n.conjunctionInputs);
-        n.conjunctionInputs[conj] = inputs;
+        n.conjunctionInputs[conj] = n.getInputs(conj);
     }
     return n;
 }
@@ -64,8 +67,8 @@ struct Pulse {
     bool level;
 }
 
-Pulse[] step(const ref Network n, ref NetworkState s) {
-    Pulse[] rxPulses = [];
+Pulse[] step(const ref Network n, ref NetworkState s, string output = "output") {
+    Pulse[] outputPulses = [];
     Pulse[] next = [Pulse("button", "broadcaster", false)];
     while (!next.empty) {
         Pulse pulse = next.front;
@@ -78,8 +81,8 @@ Pulse[] step(const ref Network n, ref NetworkState s) {
 
         string current = pulse.destination;
 
-        if (current == "rx") {
-            rxPulses ~= pulse;
+        if (current == output) {
+            outputPulses ~= pulse;
         }
 
         if (current !in n.modules) continue;
@@ -105,7 +108,7 @@ Pulse[] step(const ref Network n, ref NetworkState s) {
             assert(false);
         }
     }
-    return rxPulses;
+    return outputPulses;
 }
 
 long part1(string str) {
@@ -117,17 +120,38 @@ long part1(string str) {
     return s.lowPulses * s.highPulses;
 }
 
-long part2(string str) {
-    Network n = parseNetwork(str);
+Network minimizeNetwork(Network n, string dest) {
+    string[] nodes = [];
+    string[] next = [dest];
+    while (!next.empty) {
+        string current = next.front;
+        nodes ~= current;
+        next.popFront;
+        next ~= n.getInputs(current).filter!(i => !nodes.canFind(i)).array;
+    }
+    return Network(
+            n.modules.byPair.filter!(p => nodes.canFind(p[0])).assocArray,
+            n.conjunctionInputs.byPair.filter!(p => nodes.canFind(p[0])).assocArray);
+}
+
+long detectCycle(Network n) {
     NetworkState s = initState(n);
     long count = 0;
     while (true) {
+        step(n, s);
         count++;
-        Pulse[] rxPulses = step(n, s);
-        if (rxPulses.any!(p => p.level == false))
-            break;
+        if (!s.flipFlops.byValue.any)
+            return count;
     }
-    return count;
+}
+
+auto part2(string str) {
+    Network n = parseNetwork(str);
+    string[] rxInputs = n.getInputs("rx");
+    assert(rxInputs.length == 1);
+    string[] dtInputs = n.getInputs(rxInputs[0]);
+    long[] cycleCounts = dtInputs.map!(i => detectCycle(n.minimizeNetwork(i))).array;
+    return cycleCounts.fold!((x, y) => x * y);
 }
 
 void main() {
@@ -145,5 +169,7 @@ void main() {
     writeln(part1(example1));
     writeln(part1(example2));
     writeln(part1(readText("input")));
+    writeln(detectCycle(parseNetwork(example1)));
+    writeln(detectCycle(parseNetwork(example2)));
     writeln(part2(readText("input")));
 }
