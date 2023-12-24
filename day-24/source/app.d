@@ -22,15 +22,14 @@ Q Z(long x) { return Q(x, 1); }
 
 struct Vec2 {
     long x, y;
-    Vec2 opBinary(string op : "+")(Vec2 rhs) { return Vec2(x + rhs.x, y + rhs.y); }
-    Vec2 opBinary(string op : "-")(Vec2 rhs) { return Vec2(x - rhs.x, y - rhs.y); }
 }
 
 struct Vec3 {
     long x, y, z;
     Vec3 opBinary(string op : "+")(Vec3 rhs) { return Vec3(x + rhs.x, y + rhs.y, z + rhs.z); }
     Vec3 opBinary(string op : "-")(Vec3 rhs) { return Vec3(x - rhs.x, y - rhs.y, z - rhs.z); }
-    Vec2 xy() { return Vec2(x, y); }
+    Vec3 opBinary(string op : "*")(long rhs) { return Vec3(x * rhs, y * rhs, z * rhs); }
+    Vec3 opBinary(string op : "/")(long rhs) { return Vec3(x / rhs, y / rhs, z / rhs); }
 }
 
 struct Particle {
@@ -67,6 +66,74 @@ long part1(Particle[] p, long min, long max) {
 	return cartesianProduct(p, p).map!(ps => doesIntersect(ps[0], ps[1], Vec2(min,min), Vec2(max,max))).sum / 2;
 }
 
+struct Plane {
+	Vec3 p0, a, b;
+};
+
+struct Intersect {
+	Vec3 pos;
+	long time;
+};
+
+bool findIntersect(ref Intersect intersect, Plane plane, Particle p) {
+	Vec3 a = plane.a;
+	Vec3 b = plane.b;
+
+	Q nx = Z(a.y) * Z(b.z) - Z(a.z) * Z(b.y);
+	Q ny = Z(a.z) * Z(b.x) - Z(a.x) * Z(b.z);
+	Q nz = Z(a.x) * Z(b.y) - Z(a.y) * Z(b.x);
+
+	Vec3 diff = plane.p0 - p.pos;
+	Q tN = Z(diff.x) * nx + Z(diff.y) * ny + Z(diff.z) * nz;
+	Q tD = Z(p.vel.x) * nx + Z(p.vel.y) * ny + Z(p.vel.z) * nz;
+	if (tD == 0)
+		return false;
+	Q t = tN / tD;
+	t.canonicalize;
+	assert(t.denominator == 1);
+	intersect.time = t.numerator.toLong;
+	intersect.pos = p.pos + p.vel * intersect.time;
+	return true;
+}
+
+void part2(Particle[] p) {
+	// Find plane
+	bool planeFound = false;
+	Plane plane;
+	foreach (ps; cartesianProduct(p, p)) {
+		if (ps[0] == ps[1]) continue;
+		Q xratio = Z(ps[0].vel.x) / Z(ps[1].vel.x);
+		Q yratio = Z(ps[0].vel.y) / Z(ps[1].vel.y);
+		Q zratio = Z(ps[0].vel.z) / Z(ps[1].vel.z);
+		if (xratio == yratio && yratio == zratio) {
+			planeFound = true;
+			Vec3 p0 = ps[0].pos;
+			Vec3 p01 = ps[1].pos - ps[0].pos;
+			Vec3 p02 = ps[0].vel;
+			writeln("Plane: ", p0, " - ", p01, " - ", p02);
+			plane = Plane(p0, p01, p02);
+			break;
+		}
+	}
+	assert(planeFound);
+
+	// Find intersection of particles with plane
+	Intersect[] intersects;
+	foreach (particle; p) {
+		Intersect i;
+		if (findIntersect(i, plane, particle)) {
+			intersects ~= i;
+		}
+		if (intersects.length >= 2)
+			break;
+	}
+
+	Vec3 vel = (intersects[1].pos - intersects[0].pos) / (intersects[1].time - intersects[0].time);
+	Vec3 pos = intersects[0].pos - vel * intersects[0].time;
+	writeln(pos);
+	writeln(pos.x + pos.y + pos.z);
+}
+
 void main()
 {
 	string example1 = `19, 13, 30 @ -2,  1, -2
@@ -78,4 +145,6 @@ void main()
 
 	writeln(part1(parseParticles(example1), 7, 27));
 	writeln(part1(parseParticles(input), 200000000000000, 400000000000000));
+	part2(parseParticles(example1));
+	part2(parseParticles(input));
 }
