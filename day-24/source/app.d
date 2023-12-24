@@ -90,7 +90,8 @@ bool findIntersect(ref Intersect intersect, Plane plane, Particle p) {
 		return false;
 	Q t = tN / tD;
 	t.canonicalize;
-	assert(t.denominator == 1);
+	if (t.denominator != 1)
+		return false;
 	intersect.time = t.numerator.toLong;
 	intersect.pos = p.pos + p.vel * intersect.time;
 	return true;
@@ -99,39 +100,39 @@ bool findIntersect(ref Intersect intersect, Plane plane, Particle p) {
 void part2(Particle[] p) {
 	// Find plane
 	bool planeFound = false;
-	Plane plane;
-	foreach (ps; cartesianProduct(p, p)) {
-		if (ps[0] == ps[1]) continue;
-		Q xratio = Z(ps[0].vel.x) / Z(ps[1].vel.x);
-		Q yratio = Z(ps[0].vel.y) / Z(ps[1].vel.y);
-		Q zratio = Z(ps[0].vel.z) / Z(ps[1].vel.z);
-		if (xratio == yratio && yratio == zratio) {
-			planeFound = true;
-			Vec3 p0 = ps[0].pos;
-			Vec3 p01 = ps[1].pos - ps[0].pos;
-			Vec3 p02 = ps[0].vel;
-			writeln("Plane: ", p0, " - ", p01, " - ", p02);
-			plane = Plane(p0, p01, p02);
-			break;
+	for (long j = 0; ; j++) {
+		if ((j & 0xff) == 0) write(j, "\r");
+		Plane plane = Plane(p[0].pos, p[0].vel, p[1].pos - p[0].pos + p[1].vel * j);
+
+		// Find intersection of particles with plane
+		Intersect[] intersects;
+		foreach (particle; p) {
+			Intersect i;
+			if (findIntersect(i, plane, particle)) {
+				intersects ~= i;
+			}
+			if (intersects.length >= 3)
+				break;
+		}
+
+		if (intersects.length < 3)
+			continue;
+
+		if (intersects[1].time == intersects[0].time) continue;
+		if (intersects[2].time == intersects[0].time) continue;
+
+		Vec3 vel01 = (intersects[1].pos - intersects[0].pos) / (intersects[1].time - intersects[0].time);
+		Vec3 pos01 = intersects[0].pos - vel01 * intersects[0].time;
+
+		Vec3 vel02 = (intersects[2].pos - intersects[0].pos) / (intersects[2].time - intersects[0].time);
+		Vec3 pos02 = intersects[0].pos - vel02 * intersects[0].time;
+
+		if (vel01 == vel02 && pos01 == pos02) {
+			writeln(pos01);
+			writeln(pos01.x + pos01.y + pos01.z);
+			return;
 		}
 	}
-	assert(planeFound);
-
-	// Find intersection of particles with plane
-	Intersect[] intersects;
-	foreach (particle; p) {
-		Intersect i;
-		if (findIntersect(i, plane, particle)) {
-			intersects ~= i;
-		}
-		if (intersects.length >= 2)
-			break;
-	}
-
-	Vec3 vel = (intersects[1].pos - intersects[0].pos) / (intersects[1].time - intersects[0].time);
-	Vec3 pos = intersects[0].pos - vel * intersects[0].time;
-	writeln(pos);
-	writeln(pos.x + pos.y + pos.z);
 }
 
 void main()
