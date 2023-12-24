@@ -79,20 +79,19 @@ bool findIntersect(ref Intersect intersect, Plane plane, Particle p) {
 	Vec3 a = plane.a;
 	Vec3 b = plane.b;
 
-	Q nx = Z(a.y) * Z(b.z) - Z(a.z) * Z(b.y);
-	Q ny = Z(a.z) * Z(b.x) - Z(a.x) * Z(b.z);
-	Q nz = Z(a.x) * Z(b.y) - Z(a.y) * Z(b.x);
+	Int128 nx = Int128(a.y) * Int128(b.z) - Int128(a.z) * Int128(b.y);
+	Int128 ny = Int128(a.z) * Int128(b.x) - Int128(a.x) * Int128(b.z);
+	Int128 nz = Int128(a.x) * Int128(b.y) - Int128(a.y) * Int128(b.x);
 
 	Vec3 diff = plane.p0 - p.pos;
-	Q tN = Z(diff.x) * nx + Z(diff.y) * ny + Z(diff.z) * nz;
-	Q tD = Z(p.vel.x) * nx + Z(p.vel.y) * ny + Z(p.vel.z) * nz;
-	if (tD == 0)
+	Int128 tN = Int128(diff.x) * nx + Int128(diff.y) * ny + Int128(diff.z) * nz;
+	Int128 tD = Int128(p.vel.x) * nx + Int128(p.vel.y) * ny + Int128(p.vel.z) * nz;
+	if (tD == Int128(0L))
 		return false;
-	Q t = tN / tD;
-	t.canonicalize;
-	if (t.denominator != 1)
+	if (tN % tD != Int128(0L))
 		return false;
-	intersect.time = t.numerator.toLong;
+	Int128 t = tN / tD;
+	intersect.time = t.data.lo;
 	intersect.pos = p.pos + p.vel * intersect.time;
 	return true;
 }
@@ -100,16 +99,20 @@ bool findIntersect(ref Intersect intersect, Plane plane, Particle p) {
 void part2(Particle[] p) {
 	// Find plane
 	bool planeFound = false;
-	for (long j = 0; ; j++) {
-		if ((j & 0xff) == 0) write(j, "\r");
-		Plane plane = Plane(p[0].pos, p[0].vel, p[1].pos - p[0].pos + p[1].vel * j);
+	for (long vx = -500; vx <= 500; vx++)
+	for (long vy = -500; vy <= 500; vy++)
+	for (long vz = -500; vz <= 500; vz++) {
+		Plane plane = Plane(p[0].pos, p[0].vel, Vec3(vx, vy, vz));
 
 		// Find intersection of particles with plane
 		Intersect[] intersects;
-		foreach (particle; p) {
+		long failures = 0;
+		foreach (particle; p[1..$]) {
 			Intersect i;
 			if (findIntersect(i, plane, particle)) {
 				intersects ~= i;
+			} else {
+				break;
 			}
 			if (intersects.length >= 3)
 				break;
