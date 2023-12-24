@@ -1,0 +1,12 @@
+{
+	"authors": [
+		"mary"
+	],
+	"copyright": "Copyright © 2023, mary",
+	"dependencies": {
+		"gmp-d": "~>0.2.17"
+	},
+	"description": "A minimal D application.",
+	"license": "proprietary",
+	"name": "day-24"
+}

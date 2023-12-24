@@ -1,0 +1,16 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/day-24
+day-24.so
+day-24.dylib
+day-24.dll
+day-24.a
+day-24.lib
+day-24-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst
